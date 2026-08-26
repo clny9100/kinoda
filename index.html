@@ -352,6 +352,8 @@ footer{
   footer{flex-direction:column;gap:4px;}
   .bgm{right:12px;bottom:12px;padding:9px 12px;}
   .bgm__label{display:none;}
+  .bgm[data-blocked="1"]{padding:9px 15px 9px 12px;}
+  .bgm[data-blocked="1"] .bgm__label{display:inline;}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -780,16 +782,15 @@ footer{
     var audio = document.getElementById('bgm');
     var btn = document.getElementById('bgm-btn');
     if (!audio || !btn) return;
+    var label = btn.querySelector('.bgm__label');
 
-    var BGM_KEY = 'minakami-bgm';
-    var wants = true;
-    try { wants = localStorage.getItem(BGM_KEY) !== 'off'; } catch (e) {}
+    var wants = true;   /* 開くたび必ずONから始める */
     audio.volume = 0.5;
 
     function mark(on) {
       btn.dataset.on = on ? '1' : '0';
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      if (on) btn.removeAttribute('data-blocked');
+      if (on) { btn.removeAttribute('data-blocked'); label.textContent = 'BGM'; }
     }
     audio.addEventListener('play', function () { mark(true); });
     audio.addEventListener('pause', function () { mark(false); });
@@ -806,7 +807,8 @@ footer{
     }
     function blocked() {
       btn.setAttribute('data-blocked', '1');
-      ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) {
+      label.textContent = 'TAP';
+      ['pointerdown', 'pointerup', 'click', 'keydown', 'touchend'].forEach(function (ev) {
         document.addEventListener(ev, unlock, { once: true, passive: true });
       });
     }
@@ -819,7 +821,6 @@ footer{
     btn.addEventListener('click', function () {
       wants = audio.paused;
       if (wants) { start(); } else { audio.pause(); }
-      try { localStorage.setItem(BGM_KEY, wants ? 'on' : 'off'); } catch (e) {}
     });
   }
   if (document.readyState === 'loading') {
