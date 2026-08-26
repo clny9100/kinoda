@@ -316,6 +316,8 @@ a{color:inherit;}
 .bgm[data-on="1"] .bgm__eq i:nth-child(2){animation-duration:.63s;}
 .bgm[data-on="1"] .bgm__eq i:nth-child(3){animation-duration:1.14s;}
 @keyframes eq{0%,100%{height:3px;}50%{height:11px;}}
+.bgm[data-blocked="1"]{color:var(--neo);animation:bgmwait 2.4s ease-in-out infinite;}
+@keyframes bgmwait{0%,100%{opacity:.5;}50%{opacity:1;}}
 
 footer{
   border-top:1px solid var(--line);margin-top:clamp(48px,8vh,86px);
@@ -771,10 +773,14 @@ footer{
   });
   tally();
 
-  /* --- BGM --- */
-  var audio = document.getElementById('bgm');
-  var btn = document.getElementById('bgm-btn');
-  if (audio && btn) {
+  /* --- BGM ---
+     <audio> は本文の描画を妨げないよう body の末尾に置いてあるので、
+     このスクリプトの時点ではまだ存在しない。解析が終わってから掴む。 */
+  function bgm() {
+    var audio = document.getElementById('bgm');
+    var btn = document.getElementById('bgm-btn');
+    if (!audio || !btn) return;
+
     var BGM_KEY = 'minakami-bgm';
     var wants = true;
     try { wants = localStorage.getItem(BGM_KEY) !== 'off'; } catch (e) {}
@@ -783,13 +789,14 @@ footer{
     function mark(on) {
       btn.dataset.on = on ? '1' : '0';
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on) btn.removeAttribute('data-blocked');
     }
     audio.addEventListener('play', function () { mark(true); });
     audio.addEventListener('pause', function () { mark(false); });
 
     function start() {
       var p = audio.play();
-      if (p && p.catch) p.catch(function () {});
+      if (p && p.catch) p.catch(function () { blocked(); });
     }
 
     /* ブラウザに自動再生を止められたら、最初の操作で鳴らす */
@@ -797,15 +804,16 @@ footer{
       if (e && e.target && e.target.closest && e.target.closest('.bgm')) return;
       if (wants && audio.paused) start();
     }
+    function blocked() {
+      btn.setAttribute('data-blocked', '1');
+      ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(function (ev) {
+        document.addEventListener(ev, unlock, { once: true, passive: true });
+      });
+    }
+
     if (wants) {
       var first = audio.play();
-      if (first && first.catch) {
-        first.catch(function () {
-          ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
-            document.addEventListener(ev, unlock, { once: true, passive: true });
-          });
-        });
-      }
+      if (first && first.catch) { first.catch(blocked); } else { blocked(); }
     }
 
     btn.addEventListener('click', function () {
@@ -813,6 +821,11 @@ footer{
       if (wants) { start(); } else { audio.pause(); }
       try { localStorage.setItem(BGM_KEY, wants ? 'on' : 'off'); } catch (e) {}
     });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bgm);
+  } else {
+    bgm();
   }
 })();
 </script>
